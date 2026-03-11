@@ -2,6 +2,7 @@
 
 import sys
 import os
+import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit as st
@@ -19,7 +20,7 @@ st.caption("Ask anything about the Skilled Migrant visa — powered by official 
 st.divider()
 
 # ── LOAD VECTOR STORE ONCE ───────────────────────────────────────────
-@st.cache_resource
+@st.cache_resource(ttl=86400)
 def initialise():
     url = "https://www.immigration.govt.nz/visas/skilled-migrant-category-resident-visa/"
     chunks = load_inz_webpage(url)
