@@ -10,7 +10,14 @@ load_dotenv()
 # ── 1. SCRAPE INZ WEBPAGE ────────────────────────────────────────────
 def load_inz_webpage(url):
     print(f"🌐 Fetching: {url}")
-    response = requests.get(url)
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+    except Exception as e:
+        print(f"⚠️ Failed to fetch {url}: {e}")
+        return []  # return empty, handle gracefully upstream
+    
+    #response = requests.get(url)
     soup = BeautifulSoup(response.text, "html.parser")
     
     # Remove nav/footer noise
