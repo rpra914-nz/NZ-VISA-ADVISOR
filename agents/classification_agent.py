@@ -18,12 +18,11 @@ QUALIFICATION_POINTS = {
     "bachelors": 3,
     "bachelor": 3,
     "degree": 3,
-    "diploma": 0,  # below degree level
+    "diploma": 0,
     "certificate": 0
 }
 
 INCOME_POINTS = {
-    # Based on 2025 median wage NZD $35/hr
     "3x_median": 6,   # $105+/hr
     "2x_median": 5,   # $70-104/hr
     "1.5x_median": 4, # $52-69/hr
@@ -31,7 +30,6 @@ INCOME_POINTS = {
     "below_median": 0
 }
 
-# NZ work experience top-up (max 3 points)
 NZ_EXPERIENCE_POINTS_PER_YEAR = 1
 MAX_NZ_EXPERIENCE_POINTS = 3
 
@@ -45,7 +43,6 @@ def classify_applicant(profile: dict) -> dict:
 
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
-    # Build the classification prompt
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=2000,
@@ -118,15 +115,33 @@ policy before lodging any application."""
     )
 
     raw_response = message.content[0].text
-
-    # Parse the structured response
     result = parse_classification_response(raw_response, profile)
     return result
 
 
 # ── PARSE RESPONSE ───────────────────────────────────────────────────
+def _extract_bullets(lines: list, start_index: int) -> list:
+    """Extract bullet point lines starting from start_index until next section."""
+    items = []
+    for line in lines[start_index:]:
+        stripped = line.strip()
+        if stripped.startswith("-"):
+            clean = stripped.lstrip("- ").strip()
+            items.append(clean)
+        elif stripped == "" or stripped == "---":
+            continue
+        elif any(stripped.startswith(k) for k in [
+            "RECOMMENDED_VISA:", "POINTS_FROM_PILLAR:", "PILLAR_USED:",
+            "NZ_EXPERIENCE_POINTS:", "TOTAL_POINTS:", "THRESHOLD:",
+            "STATUS:", "CONFIDENCE:", "STRENGTHS:", "GAPS:",
+            "RECOMMENDED_ACTIONS:", "RISK_FLAGS:", "DISCLAIMER:"
+        ]):
+            break
+    return items
+
+
 def parse_classification_response(raw: str, profile: dict) -> dict:
-    """Parses Claude's structured response into a clean dict"""
+    """Parses Claude's structured response into a clean dict — including all sections."""
 
     lines = raw.strip().split("\n")
     result = {
@@ -135,20 +150,43 @@ def parse_classification_response(raw: str, profile: dict) -> dict:
         "parsed": {}
     }
 
-    # Extract key fields
-    for line in lines:
-        if line.startswith("RECOMMENDED_VISA:"):
-            result["parsed"]["visa"] = line.split(":", 1)[1].strip()
-        elif line.startswith("POINTS_FROM_PILLAR:"):
-            result["parsed"]["pillar_points"] = line.split(":", 1)[1].strip()
-        elif line.startswith("PILLAR_USED:"):
-            result["parsed"]["pillar"] = line.split(":", 1)[1].strip()
-        elif line.startswith("TOTAL_POINTS:"):
-            result["parsed"]["total_points"] = line.split(":", 1)[1].strip()
-        elif line.startswith("STATUS:"):
-            result["parsed"]["status"] = line.split(":", 1)[1].strip()
-        elif line.startswith("CONFIDENCE:"):
-            result["parsed"]["confidence"] = line.split(":", 1)[1].strip()
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+
+        # ── Single-value fields ──
+        if stripped.startswith("RECOMMENDED_VISA:"):
+            result["parsed"]["visa"] = stripped.split(":", 1)[1].strip()
+
+        elif stripped.startswith("POINTS_FROM_PILLAR:"):
+            result["parsed"]["pillar_points"] = stripped.split(":", 1)[1].strip()
+
+        elif stripped.startswith("PILLAR_USED:"):
+            result["parsed"]["pillar"] = stripped.split(":", 1)[1].strip()
+
+        elif stripped.startswith("NZ_EXPERIENCE_POINTS:"):
+            result["parsed"]["nz_experience_points"] = stripped.split(":", 1)[1].strip()
+
+        elif stripped.startswith("TOTAL_POINTS:"):
+            result["parsed"]["total_points"] = stripped.split(":", 1)[1].strip()
+
+        elif stripped.startswith("STATUS:"):
+            result["parsed"]["status"] = stripped.split(":", 1)[1].strip()
+
+        elif stripped.startswith("CONFIDENCE:"):
+            result["parsed"]["confidence"] = stripped.split(":", 1)[1].strip()
+
+        # ── Multi-line bullet sections ──
+        elif stripped.startswith("STRENGTHS:"):
+            result["parsed"]["strengths"] = _extract_bullets(lines, i + 1)
+
+        elif stripped.startswith("GAPS:"):
+            result["parsed"]["gaps"] = _extract_bullets(lines, i + 1)
+
+        elif stripped.startswith("RECOMMENDED_ACTIONS:"):
+            result["parsed"]["recommended_actions"] = _extract_bullets(lines, i + 1)
+
+        elif stripped.startswith("RISK_FLAGS:"):
+            result["parsed"]["risk_flags"] = _extract_bullets(lines, i + 1)
 
     return result
 
@@ -156,7 +194,6 @@ def parse_classification_response(raw: str, profile: dict) -> dict:
 # ── TEST ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
 
-    # Use the exact profile from our Week 2 intake agent test
     test_profile = {
         "nationality": "indian",
         "age": 29,
@@ -180,7 +217,7 @@ if __name__ == "__main__":
     print(f"  Points:       {result['parsed'].get('total_points')}/6")
     print(f"  Status:       {result['parsed'].get('status')}")
     print(f"  Confidence:   {result['parsed'].get('confidence')}")
-
-    print("\n📋 FULL ASSESSMENT:")
-    print("=" * 50)
-    print(result["raw_assessment"])
+    print(f"  Strengths:    {result['parsed'].get('strengths')}")
+    print(f"  Gaps:         {result['parsed'].get('gaps')}")
+    print(f"  Actions:      {result['parsed'].get('recommended_actions')}")
+    print(f"  Risk Flags:   {result['parsed'].get('risk_flags')}")

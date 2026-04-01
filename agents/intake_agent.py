@@ -11,6 +11,11 @@ load_dotenv()
 
 INTAKE_QUESTIONS = [
     {
+        "key": "full_name",
+        "question": "What is your client's full name?",
+        "type": "text"
+    },
+    {
         "key": "nationality",
         "question": "What is your client's nationality / country of citizenship?",
         "type": "text"
@@ -54,6 +59,21 @@ INTAKE_QUESTIONS = [
         "key": "currently_in_nz",
         "question": "Is your client currently in New Zealand?",
         "type": "boolean"
+    },
+    {
+        "key": "salary",
+        "question": "What is your client's current or offered annual salary in NZD? (e.g. $80,000 or $45/hr — if unknown, type 'unknown')",
+        "type": "text"
+    },
+    {
+        "key": "nz_work_experience_years",
+        "question": "How many years of skilled work experience does your client have in New Zealand specifically? (Enter 0 if none)",
+        "type": "number"
+    },
+    {
+        "key": "anzsco_code",
+        "question": "What is the ANZSCO occupation code for your client's role? (e.g. 261111 for ICT Business Analyst — type 'unknown' if unsure)",
+        "type": "text"
     }
 ]
 
