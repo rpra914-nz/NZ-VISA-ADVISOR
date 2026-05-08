@@ -249,7 +249,8 @@ if st.session_state.assessment_result is not None:
         st.subheader("💪 Strengths")
         if strengths:
             for s in strengths:
-                st.markdown(f"✅ {s}")
+                st.markdown(f"✅ {s}", unsafe_allow_html=False)
+                st.markdown(f"✅ {s.replace('$', r'\$')}")
         else:
             st.caption("None identified.")
 
@@ -257,7 +258,8 @@ if st.session_state.assessment_result is not None:
         st.subheader("⚠️ Gaps")
         if gaps:
             for g in gaps:
-                st.markdown(f"🔴 {g}")
+                st.markdown(f"🔴 {g}", unsafe_allow_html=False)
+                st.markdown(f"🔴 {g.replace('$', r'\$')}")
         else:
             st.caption("None identified.")
 
@@ -277,7 +279,7 @@ if st.session_state.assessment_result is not None:
     st.subheader("🚩 Risk Flags")
     if non_none_risks:
         for r in non_none_risks:
-            st.warning(r)
+            st.warning(r.replace('$', r'\$'))
     else:
         st.success("✅ No significant risk flags identified.")
 

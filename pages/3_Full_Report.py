@@ -12,6 +12,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents.report_agent import generate_report
 
+# ── Initial Page  ───────────────────────────────────────────────────────────────
+if "client_profile" not in st.session_state:
+    st.warning("⚠️ Please complete Visa Eligibility intake first.")
+    if st.button("← Go to Visa Eligibility"):
+        st.switch_page("pages/1_Visa_Eligibility.py")
+    st.stop()
+
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Full Report — NZ Visa Advisor",
@@ -68,15 +75,15 @@ if not has_profile:
     st.stop()
 
 # ── Prepare data (use empty fallbacks for optional sections) ──────────────────
-profile = st.session_state.get("client_profile", {})
-assessment = st.session_state.get("assessment_result", {})
-doc_review = st.session_state.get("doc_review_results", {
+profile = st.session_state.get("client_profile") or {}
+assessment = st.session_state.get("assessment_result") or {}
+doc_review = st.session_state.get("doc_review_results") or {
     "reviewed_docs": [],
     "checklist": [],
     "required_missing": [],
     "all_required_present": False,
     "total_uploaded": 0,
-})
+}
 
 # ── Report preview ────────────────────────────────────────────────────────────
 st.subheader("👤 Report Preview")

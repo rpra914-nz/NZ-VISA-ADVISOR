@@ -52,9 +52,9 @@ with col1:
     )
     if st.button("Generate Report →",
                   use_container_width=True,
-                  disabled=True):
+                  disabled="client_profile" not in st.session_state):
         st.switch_page("pages/3_Full_Report.py")
-    st.caption("🔒 Complete eligibility check first")
+    st.caption("🔒 Complete eligibility check first for full report")
 
 with col2:
     st.markdown("### 📄 Document Review")
@@ -65,10 +65,10 @@ with col2:
     )
     if st.button("Review Documents →",
                   use_container_width=True,
-                  disabled=True):
+                  disabled="client_profile" not in st.session_state):
         st.switch_page("pages/2_Document_Review.py")
-    st.caption("🔒 Coming in Week 4")
-
+    st.caption("💡 Complete eligibility check first for Document review")
+    
     st.write("")
 
     st.markdown("### ❓ Ask INZ Policy")
@@ -83,9 +83,13 @@ with col2:
 
 st.divider()
 
+
 # ── FOOTER ───────────────────────────────────────────────────────────
 st.caption(
     "NZ Visa Advisor v0.1 | "
     "Built with Claude AI | "
     "Data sourced from immigration.govt.nz"
 )
+# Trigger cache warmup on home page load
+from utils.cache import get_collection
+get_collection()

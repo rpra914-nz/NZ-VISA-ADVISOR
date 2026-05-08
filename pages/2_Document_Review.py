@@ -10,6 +10,14 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents.document_review_agent import review_documents
+from utils.cache import get_collection
+
+# ── Initial Page  ──────────────────────────────────────────────────────────────
+if "client_profile" not in st.session_state:
+    st.warning("⚠️ Please complete Visa Eligibility intake first.")
+    if st.button("← Go to Visa Eligibility"):
+        st.switch_page("pages/1_Visa_Eligibility.py")
+    st.stop()
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(

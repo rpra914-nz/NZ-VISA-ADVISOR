@@ -7,7 +7,9 @@ from agents.rag_agent import retrieve, ask_claude
 
 # added to make loading of documents as soon as the web page opens!
 from utils.cache import get_collection
-collection, all_chunks = get_collection()
+with st.spinner("⏳ Loading INZ policy documents... please wait."):
+    collection, all_chunks = get_collection()
+st.success("✅ INZ documents loaded. Ask your question below!")
 
 # request chunks
 from utils.urls import INZ_URLS
@@ -27,8 +29,6 @@ st.title("❓ Ask INZ Policy")
 st.caption("Questions answered from live INZ documentation")
 st.divider()
 
-
-st.success("✅ INZ documents loaded. Ask your question below!")
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
