@@ -5,6 +5,12 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
+from rank_bm25 import BM25Okapi  # keyword search
+import re
+
+from utils.urls import INZ_URLS
+n_results = max(5, len(INZ_URLS))  # at least 1 chunk per URL
+
 load_dotenv()
 
 # ── 1. SCRAPE INZ WEBPAGE ────────────────────────────────────────────
@@ -28,7 +34,7 @@ def load_inz_webpage(url):
     chunks = []
     for i, section in enumerate(soup.find_all(["p", "li", "h2", "h3"])):
         text = section.get_text(strip=True)
-        if len(text) > 50:
+        if len(text) > 100:
             chunks.append({
                 "text": text,
                 "page": i + 1
@@ -57,152 +63,161 @@ def build_vector_store(chunks):
     print(f"✅ Stored {len(chunks)} chunks in ChromaDB")
     return collection
 
-
-# ── 3. RETRIEVE RELEVANT CHUNKS ──────────────────────────────────────
-def retrieve(collection, query, n=3):
-    results = collection.query(
-        query_texts=[query],
-        n_results=n
-    )
-    chunks = results["documents"][0]
-    pages = [m["page"] for m in results["metadatas"][0]]
-    return chunks, pages
-
-
-# ── 4. ASK CLAUDE ────────────────────────────────────────────────────
-def ask_claude(query, chunks, pages):
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-    
-    context = "\n\n".join([
-        f"[Section {pages[i]}]:\n{chunks[i]}" 
-        for i in range(len(chunks))
-    ])
-    
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
-        messages=[
-            {
-                "role": "user",
-                "content": f"""You are an NZ immigration assistant. 
-Answer the question using ONLY the context below.
-Always cite the section number you got the answer from.
-
-CONTEXT:
-{context}
-
-QUESTION: {query}"""
-            }
-        ]
-    )
-    return message.content[0].text
-
-
-# ── 5. MAIN ──────────────────────────────────────────────────────────
-import os
-import chromadb
-import anthropic
-import requests
-from bs4 import BeautifulSoup
-from dotenv import load_dotenv
-
-load_dotenv()
-
-# ── 1. SCRAPE INZ WEBPAGE ────────────────────────────────────────────
-def load_inz_webpage(url):
-    print(f"🌐 Fetching: {url}")
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-    except Exception as e:
-        print(f"⚠️ Failed to fetch {url}: {e}")
-        return []
-
-    soup = BeautifulSoup(response.text, "html.parser")
-    
-    for tag in soup(["nav", "footer", "script", "style"]):
-        tag.decompose()
-    
-    chunks = []
-    for i, section in enumerate(soup.find_all(["p", "li", "h2", "h3"])):
-        text = section.get_text(strip=True)
-        if len(text) > 50:
-            chunks.append({
-                "text": text,
-                "page": i + 1
-            })
-    
-    print(f"✅ Extracted {len(chunks)} text chunks from webpage")
-    return chunks
-
-
-# ── 2. LOAD MULTIPLE PAGES ───────────────────────────────────────────
+# ── 3. LOAD MULTIPLE PAGES ───────────────────────────────────────────────
 def load_multiple_pages(urls):
     all_chunks = []
-    chunk_counter = 0  # global counter across all pages
-    
+    chunk_counter = 0
     for url in urls:
         chunks = load_inz_webpage(url)
-        # Re-number chunks to avoid duplicate IDs
         for chunk in chunks:
             chunk["page"] = chunk_counter + 1
+            chunk["url"] = url  # track source URL per chunk
             chunk_counter += 1
         all_chunks.extend(chunks)
-    
     print(f"✅ Total chunks from {len(urls)} pages: {len(all_chunks)}")
     return all_chunks
 
+# ── KEYWORD SEARCH (BM25) ─────────────────────────────────────────────
+# Finds chunks with exact word/term matches (e.g. "clause 4.2", "160 points")
+# Complements semantic search which finds meaning but may miss exact terms
+def bm25_retrieve(all_chunks, query, n=3):
+    tokenized_corpus = [c["text"].lower().split() for c in all_chunks]
+    bm25 = BM25Okapi(tokenized_corpus)
+    tokenized_query = query.lower().split()
+    scores = bm25.get_scores(tokenized_query)
+    # Get top n indices sorted by score
+    top_indices = sorted(
+        range(len(scores)),
+        key=lambda i: scores[i],
+        reverse=True
+    )[:n]
+    return [all_chunks[i] for i in top_indices]
 
-# ── 3. STORE IN CHROMADB ─────────────────────────────────────────────
-def build_vector_store(chunks):
-    client = chromadb.PersistentClient(path=".chroma")
-    
-    try:
-        client.delete_collection("visa_docs")
-    except:
-        pass
-    
-    collection = client.create_collection("visa_docs")
-    
-    collection.add(
-        documents=[c["text"] for c in chunks],
-        metadatas=[{"page": c["page"]} for c in chunks],
-        ids=[f"page_{c['page']}" for c in chunks]
+# ── CONFLICT DETECTION ────────────────────────────────────────────────
+# Checks if retrieved chunks contradict each other on key thresholds
+# e.g. one chunk says "6 points" another says "160 points"
+# Flags conflict so LIA knows to manually verify before advising client
+def detect_conflicts(chunks):
+    # Key terms that could have conflicting values in INZ policy
+    conflict_patterns = [
+        r"\b\d+\s*points\b",        # e.g. "6 points" vs "160 points"
+        r"\bielts\s*\d+\.?\d*\b",   # e.g. "IELTS 6.5" vs "IELTS 7.0"
+        r"\$\d+[\d,]*",             # e.g. "$35/hr" vs "$52/hr"
+        r"\b\d+\s*years?\b",        # e.g. "2 years" vs "5 years"
+    ]
+
+    found_values = {}  # pattern → list of values found across chunks
+    conflicts = []
+
+    for pattern in conflict_patterns:
+        matches_per_chunk = [
+            re.findall(pattern, chunk.lower())
+            for chunk in chunks
+        ]
+        # Flatten all matches for this pattern
+        all_matches = [m for matches in matches_per_chunk for m in matches]
+        unique_values = set(all_matches)
+
+        # If more than one unique value found → potential conflict
+        if len(unique_values) > 1:
+            conflicts.append({
+                "pattern": pattern,
+                "values_found": list(unique_values),
+                "message": f"⚠️ Conflicting values detected: {', '.join(unique_values)}"
+            })
+
+    return conflicts
+
+# ── QUERY EXPANSION ───────────────────────────────────────────────────
+# Rewrites user query into better search terms before retrieval
+# Fixes mismatch between casual questions and policy document language
+def expand_query(query: str) -> str:
+    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=100,
+        messages=[{
+            "role": "user",
+            "content": f"""Rewrite this question as 3 different search phrases 
+that would match NZ immigration policy document language.
+Return ONLY the 3 phrases separated by newlines, nothing else.
+
+Question: {query}"""
+        }]
     )
-    print(f"✅ Stored {len(chunks)} chunks in ChromaDB")
-    return collection
+    expanded = message.content[0].text.strip()
+    # Combine original + expanded for maximum coverage
+    return query + " " + " ".join(expanded.split("\n"))
 
+# ── 4. HYBRID RETRIEVE ───────────────────────────────────────────────────
+# Combines semantic search (ChromaDB) + keyword search (BM25)
+# Semantic = finds meaning, BM25 = finds exact terms
+# Merged results = better coverage than either alone
+def retrieve(collection, query, n=n_results, all_chunks=None):
+    # --- Semantic search (ChromaDB embeddings) ---
+    expanded = expand_query(query)
+    semantic_results = collection.query(
+    query_texts=[query],
+    n_results=n
+)
+    semantic_chunks = semantic_results["documents"][0]
+    semantic_pages = [m["page"] for m in semantic_results["metadatas"][0]]
 
-# ── 4. RETRIEVE RELEVANT CHUNKS ──────────────────────────────────────
-def retrieve(collection, query, n=3):
-    results = collection.query(
-        query_texts=[query],
-        n_results=n
-    )
-    chunks = results["documents"][0]
-    pages = [m["page"] for m in results["metadatas"][0]]
-    return chunks, pages
+    # --- Keyword search (BM25) ---
+    keyword_chunks = []
+    keyword_pages = []
+    if all_chunks:
+        bm25_results = bm25_retrieve(all_chunks, query, n=n)
+        keyword_chunks = [c["text"] for c in bm25_results]
+        keyword_pages = [c["page"] for c in bm25_results]
+
+    # --- Merge results (deduplicate by text) ---
+    seen = set()
+    merged_chunks = []
+    merged_pages = []
+    for chunk, page in zip(
+        semantic_chunks + keyword_chunks,
+        semantic_pages + keyword_pages
+    ):
+        if chunk not in seen:
+            seen.add(chunk)
+            merged_chunks.append(chunk)
+            merged_pages.append(page)
+
+    # --- Conflict detection ---
+    conflicts = detect_conflicts(merged_chunks)
+
+    return merged_chunks, merged_pages, conflicts
 
 
 # ── 5. ASK CLAUDE ────────────────────────────────────────────────────
-def ask_claude(query, chunks, pages):
+def ask_claude(query, chunks, pages, conflicts=None):
     client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
     
     context = "\n\n".join([
         f"[Section {pages[i]}]:\n{chunks[i]}" 
         for i in range(len(chunks))
     ])
-    
+
+    # Warn Claude if conflicts were detected
+    conflict_warning = ""
+    if conflicts:
+        conflict_warning = "\n⚠️ CONFLICT WARNING: The retrieved sections may contain contradictory information. Flag this in your response and advise the LIA to verify manually.\n"
+
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=1024,
         messages=[
             {
                 "role": "user",
-                "content": f"""You are an NZ immigration assistant. 
+                "content": f"""You are an NZ immigration assistant helping a Licensed Immigration Adviser (LIA).
 Answer the question using ONLY the context below.
 Always cite the section number you got the answer from.
-
+If the exact answer is not explicitly stated, infer it from the available context and clearly label it as an inference.
+If the context is genuinely insufficient, say so and suggest the LIA verify directly with INZ.
+Never say you don't know if the answer can be reasonably inferred from the context.
+Use plain text formatting only — do not use markdown headers (no # or ##). Use bold (**text**) and bullet points only.
+{conflict_warning}
 CONTEXT:
 {context}
 
@@ -215,30 +230,17 @@ QUESTION: {query}"""
 
 # ── 6. MAIN ──────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    INZ_URLS = [
-    # Skilled Migrant Category
-    "https://www.immigration.govt.nz/visas/skilled-migrant-category-resident-visa/",
-    
-    # Permanent Resident Visa
-    "https://www.immigration.govt.nz/visas/permanent-resident-visa/",
-    
-    # Becoming a permanent resident
-    "https://www.immigration.govt.nz/live/resident-visas-to-live-in-new-zealand/permanent-residence/becoming-a-permanent-resident-of-new-zealand/",
-    
-    # Check or change resident visa conditions
-    "https://www.immigration.govt.nz/live/resident-visas-to-live-in-new-zealand/check-or-change-your-resident-visa-conditions/",
+    from utils.urls import INZ_URLS
 
-    # All resident visas overview
-    "https://www.immigration.govt.nz/live/resident-visas-to-live-in-new-zealand/",
-    ]
-    
     chunks = load_multiple_pages(INZ_URLS)
     collection = build_vector_store(chunks)
     
     print("\n🔍 Testing RAG pipeline...\n")
     query = "What documents do I need for a skilled migrant visa?"
-    chunks_retrieved, pages = retrieve(collection, query)
-    answer = ask_claude(query, chunks_retrieved, pages)
-    
+    chunks_retrieved, pages, conflicts = retrieve(collection, query, all_chunks=chunks)
+    if conflicts:
+        print(f"\n⚠️ Conflicts detected: {[c['message'] for c in conflicts]}")
+    answer = ask_claude(query, chunks_retrieved, pages, conflicts)
+        
     print(f"Q: {query}")
     print(f"\nA: {answer}")
