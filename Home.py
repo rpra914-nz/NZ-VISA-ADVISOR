@@ -10,6 +10,22 @@ st.set_page_config(
     layout="centered"
 )
 
+# ── RAG WARM-UP (background, non-blocking) ───────────────────────────
+# Kick off the RAG pipeline on first load so page 4 is ready.
+# Shows a spinner banner while it runs; errors are caught and displayed below.
+from utils.cache import get_collection
+ 
+rag_ready = False
+if "rag_initialised" not in st.session_state:
+    with st.spinner("🔄 Loading INZ policy database... (first load only, ~15 sec)"):
+        collection, chunks = get_collection()
+        if collection is not None:
+            st.session_state["rag_initialised"] = True
+            rag_ready = True
+        # error message (if any) already written to st.session_state["rag_error"] by cache.py
+else:
+    rag_ready = True
+
 # ── HEADER ───────────────────────────────────────────────────────────
 st.title("🛂 NZ Visa Advisor")
 st.subheader("AI-Powered Immigration Guidance for Licensed Advisers")
@@ -90,6 +106,3 @@ st.caption(
     "Built with Claude AI | "
     "Data sourced from immigration.govt.nz"
 )
-# Trigger cache warmup on home page load
-from utils.cache import get_collection
-get_collection()

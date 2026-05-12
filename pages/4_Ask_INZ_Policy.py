@@ -1,42 +1,48 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+ 
 import streamlit as st
 from agents.rag_agent import retrieve, ask_claude
-
-# added to make loading of documents as soon as the web page opens!
+ 
 from utils.cache import get_collection
-with st.spinner("⏳ Loading INZ policy documents... please wait."):
-    collection, all_chunks = get_collection()
-st.success("✅ INZ documents loaded. Ask your question below!")
-
-# request chunks
 from utils.urls import INZ_URLS
-n_results = max(5, len(INZ_URLS))  # at least 1 chunk per URL
-
-
+n_results = max(5, len(INZ_URLS))
+ 
 st.set_page_config(
     page_title="Ask INZ Policy",
     page_icon="❓",
     layout="centered"
 )
-
+ 
 if st.button("← Back to Home"):
     st.switch_page("Home.py")
-
+ 
 st.title("❓ Ask INZ Policy")
 st.caption("Questions answered from live INZ documentation")
 st.divider()
-
-
+ 
+# Load RAG — already warmed up by Home.py; this call hits the cache instantly
+collection, all_chunks = get_collection()
+ 
+if collection is None:
+    error_msg = st.session_state.get(
+        "rag_error",
+        "⚠️ INZ policy database could not be loaded. Check your internet connection and refresh."
+    )
+    st.error(error_msg)
+    st.info("All other features (Eligibility, Document Review, Report) remain available from Home.")
+    st.stop()
+ 
+st.success("✅ INZ documents loaded. Ask your question below!")
+ 
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
+ 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
-
+ 
 if query := st.chat_input("e.g. What documents do I need?"):
     st.session_state.messages.append({
         "role": "user",
@@ -44,7 +50,7 @@ if query := st.chat_input("e.g. What documents do I need?"):
     })
     with st.chat_message("user"):
         st.markdown(query)
-
+ 
     with st.chat_message("assistant"):
         with st.spinner("Searching INZ documents..."):
             chunks_retrieved, pages, conflicts = retrieve(collection, query, n=n_results, all_chunks=all_chunks)  # set to None to skip conflict detection for now
@@ -54,7 +60,7 @@ if query := st.chat_input("e.g. What documents do I need?"):
             for i, chunk in enumerate(chunks_retrieved):
                 st.markdown(f"**Section {pages[i]}**")
                 st.caption(chunk[:300] + "...")
-
+ 
     st.session_state.messages.append({
         "role": "assistant",
         "content": answer

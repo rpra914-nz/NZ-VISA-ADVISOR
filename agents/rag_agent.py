@@ -46,6 +46,11 @@ def load_inz_webpage(url):
 
 # ── 2. STORE IN CHROMADB ─────────────────────────────────────────────
 def build_vector_store(chunks):
+    if not chunks:
+        raise ValueError(
+            "No content scraped from INZ URLs. "
+            "Check your internet connection and that immigration.govt.nz is reachable."
+        )
     client = chromadb.PersistentClient(path=".chroma")
     
     try:
