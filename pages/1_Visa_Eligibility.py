@@ -11,6 +11,10 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from utils.auth import check_login
+if not check_login():
+    st.stop()
+
 from agents.intake_agent import IntakeAgent
 from agents.classification_agent import classify_applicant
 
@@ -306,80 +310,144 @@ st.title("🛂 Visa Eligibility")
 st.markdown("Skilled Migrant Category (SMC) — Client Assessment")
 st.divider()
 
-agent: IntakeAgent = st.session_state.intake_agent
+# ══════════════════════════════════════════════════════════════════════
+# PHASE 1 — INTAKE FORM
+# ══════════════════════════════════════════════════════════════════════
 
-# Always render the live tracker (shows whatever's collected so far)
-render_live_tracker(agent.profile)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PHASE 1 — INTAKE CHAT
-# ══════════════════════════════════════════════════════════════════════════════
 if not st.session_state.intake_complete:
 
-    # Progress bar
-    progress = agent.get_progress()
-    st.progress(progress / 100, text=f"Question {agent.current_question_index} of {13} — {progress}% complete")
+    st.subheader("📋 Client Intake Form")
+    st.caption("Complete all fields and click Submit to run the assessment.")
 
-    # Chat history
-    for msg in st.session_state.chat_history:
-        if msg["role"] == "bot":
-            st.markdown(f'<div class="chat-bubble-bot">{msg["text"]}</div>', unsafe_allow_html=True)
+    with st.form("intake_form"):
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("**Full Name**")
+            full_name = st.text_input("Full Name", label_visibility="collapsed",
+                                      placeholder="e.g. Priya Sharma")
+
+            st.markdown("**Nationality / Country of Citizenship**")
+            st.caption("💡 NZ, AU, UK, US, CA, IE citizens exempt from English test")
+            nationality = st.text_input("Nationality", label_visibility="collapsed",
+                                        placeholder="e.g. Indian")
+
+            st.markdown("**Age**")
+            st.caption("💡 Must be 55 or under at time of lodgement")
+            age = st.number_input("Age", label_visibility="collapsed",
+                                  min_value=18, max_value=80, value=30, step=1)
+
+            st.markdown("**Occupation / Job Title**")
+            st.caption("💡 Some occupations qualify for Green List faster pathway")
+            occupation = st.text_input("Occupation", label_visibility="collapsed",
+                                       placeholder="e.g. Software Engineer")
+
+            st.markdown("**ANZSCO Code**")
+            st.caption("💡 Determines if role qualifies as skilled under INZ rules")
+            anzsco_code = st.text_input("ANZSCO", label_visibility="collapsed",
+                                        placeholder="e.g. 261313")
+
+            st.markdown("**Highest Qualification**")
+            st.caption("💡 PhD=5pts | Masters=4pts | Bachelors=3pts")
+            qualification = st.selectbox("Qualification", label_visibility="collapsed",
+                options=[
+                    "Select...",
+                    "PhD / Doctorate",
+                    "Masters / Postgraduate",
+                    "Bachelor's / Honours",
+                    "Diploma / Certificate",
+                    "No formal qualification"
+                ])
+
+        with col2:
+            st.markdown("**Job Offer from Accredited NZ Employer?**")
+            st.caption("💡 Mandatory requirement — employer must hold INZ accreditation")
+            job_offer = st.radio("Job Offer", ["Yes", "No"],
+                                 label_visibility="collapsed", horizontal=True)
+
+            st.markdown("**Annual Salary Offered (NZD)**")
+            st.caption("💡 $73k-109k=3pts | $110k-145k=4pts | $146k-218k=5pts | $219k+=6pts")
+            salary = st.text_input("Salary", label_visibility="collapsed",
+                                   placeholder="e.g. 120000 (leave blank if no job offer)")
+
+            st.markdown("**Years of Professional Experience**")
+            years_experience = st.number_input("Experience", label_visibility="collapsed",
+                                               min_value=0, max_value=50, value=3, step=1)
+
+            st.markdown("**NZ Work Experience (years)**")
+            st.caption("💡 1pt per year, max 3pts — adds on top of main pillar")
+            nz_work_experience_years = st.number_input("NZ Experience",
+                                                        label_visibility="collapsed",
+                                                        min_value=0, max_value=20,
+                                                        value=0, step=1)
+
+            st.markdown("**English Proficiency**")
+            st.caption("💡 IELTS 6.5+ | PTE 58+ | TOEFL 79+ | or exempt if NZ/AU/UK/US/CA/IE")
+            english_level = st.text_input("English", label_visibility="collapsed",
+                                          placeholder="e.g. IELTS 7.0 or Native speaker")
+
+            st.markdown("**Currently in New Zealand?**")
+            currently_in_nz = st.radio("In NZ", ["Yes", "No"],
+                                       label_visibility="collapsed", horizontal=True)
+
+            st.markdown("**Family Members in Application?**")
+            st.caption("💡 Partner's qualification or NZ experience may add bonus points")
+            family = st.text_input("Family", label_visibility="collapsed",
+                                   placeholder="e.g. Spouse and 2 children, or None")
+
+        st.divider()
+        submitted = st.form_submit_button("🚀 Submit & Run Assessment",
+                                          use_container_width=True,
+                                          type="primary")
+
+    if submitted:
+        # Validate mandatory fields
+        errors = []
+        if not full_name.strip():
+            errors.append("Full Name is required")
+        if not nationality.strip():
+            errors.append("Nationality is required")
+        if qualification == "Select...":
+            errors.append("Please select a qualification level")
+
+        if errors:
+            for e in errors:
+                st.error(e)
         else:
-            st.markdown(f'<div class="chat-bubble-user">{msg["text"]}</div>', unsafe_allow_html=True)
+            # Build profile dict — same keys as intake_agent
+            profile = {
+                "full_name": full_name.strip(),
+                "nationality": nationality.strip(),
+                "age": age,
+                "occupation": occupation.strip(),
+                "anzsco_code": anzsco_code.strip() or "unknown",
+                "qualification": qualification,
+                "job_offer": job_offer == "Yes",
+                "salary": salary.strip() if salary.strip() else "unknown",
+                "years_experience": years_experience,
+                "nz_work_experience_years": nz_work_experience_years,
+                "english_level": english_level.strip() or "unknown",
+                "currently_in_nz": currently_in_nz == "Yes",
+                "family": family.strip() or "None",
+            }
 
-    # Input
-    with st.form("intake_form", clear_on_submit=True):
-        user_input = st.text_input(
-            "Your answer",
-            placeholder="Type your answer here…",
-            label_visibility="collapsed",
-        )
-        submitted = st.form_submit_button("Send →", use_container_width=True)
+            # Consistency check — no job offer but salary given
+            if not profile["job_offer"] and profile["salary"] != "unknown":
+                st.warning(
+                    "⚠️ No job offer selected but salary was provided. "
+                    "Salary will be excluded from scoring — only NZ job offer "
+                    "salaries count toward income pillar points."
+                )
+                profile["salary"] = "N/A — no job offer"
 
-    if submitted and user_input.strip():
-        # Store user message
-        st.session_state.chat_history.append({"role": "user", "text": user_input})
-
-        # Process answer
-        with st.spinner("Processing…"):
-            agent.process_answer(user_input)
-
-        # Get the key that was just answered and its extracted value
-        answered_key = None
-        if agent.current_question_index > 0:
-            from agents.intake_agent import INTAKE_QUESTIONS
-            answered_key = INTAKE_QUESTIONS[agent.current_question_index - 1]["key"]
-            answered_value = agent.profile.get(answered_key)
-            guidance = get_realtime_guidance(answered_key, answered_value)
-            if guidance:
-                st.session_state.chat_history.append({
-                    "role": "guidance",
-                    "text": guidance
-                })
-
-        if agent.complete:
-            # Intake done
+            st.session_state.client_profile = profile
+            st.session_state.intake_agent.profile = profile
             st.session_state.intake_complete = True
-            st.session_state.client_profile = agent.profile
-            st.session_state.chat_history.append({
-                "role": "bot",
-                "text": "✅ **All done!** I've collected the client profile. Review the details below and run the assessment."
-            })
-        else:
-            # Next question — include context hint before it
-            next_q = agent.get_current_question()
-            from agents.intake_agent import INTAKE_QUESTIONS
-            next_key = INTAKE_QUESTIONS[agent.current_question_index]["key"]
-            context_hint = QUESTION_CONTEXT.get(next_key)
-            msg_text = f"**{next_q}**"
-            if context_hint:
-                msg_text = context_hint + "\n\n**" + next_q + "**"
-            st.session_state.chat_history.append({
-                "role": "bot",
-                "text": msg_text
-            })
+            st.rerun()
 
-        st.rerun()
+agent: IntakeAgent = st.session_state.intake_agent
+render_live_tracker(st.session_state.client_profile if st.session_state.intake_complete else {})
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PHASE 2 — PROFILE REVIEW + RUN ASSESSMENT

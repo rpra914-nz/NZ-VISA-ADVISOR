@@ -14,7 +14,19 @@ st.set_page_config(
 # Kick off the RAG pipeline on first load so page 4 is ready.
 # Shows a spinner banner while it runs; errors are caught and displayed below.
 from utils.cache import get_collection
- 
+
+from utils.auth import check_login, logout
+if not check_login():
+    st.stop()
+
+# Show user info + logout in sidebar
+with st.sidebar:
+    st.caption(f"👤 {st.session_state.get('user_name', '')}")
+    st.caption(f"🏢 {st.session_state.get('user_firm', '')}")
+    st.divider()
+    if st.button("Logout"):
+        logout()
+
 rag_ready = False
 if "rag_initialised" not in st.session_state:
     with st.spinner("🔄 Loading INZ policy database... (first load only, ~15 sec)"):

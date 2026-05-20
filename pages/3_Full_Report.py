@@ -34,6 +34,10 @@ st.markdown(
 )
 st.divider()
 
+from utils.auth import check_login
+if not check_login():
+    st.stop()
+
 # ── Check what data is available in session state ─────────────────────────────
 has_profile = "client_profile" in st.session_state
 has_assessment = "assessment_result" in st.session_state

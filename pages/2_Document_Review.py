@@ -10,7 +10,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents.document_review_agent import review_documents
-from utils.cache import get_collection
+
 
 # ── Initial Page  ──────────────────────────────────────────────────────────────
 if "client_profile" not in st.session_state:
@@ -25,6 +25,10 @@ st.set_page_config(
     page_icon="📄",
     layout="centered",
 )
+
+from utils.auth import check_login
+if not check_login():
+    st.stop()
 
 # ── Styles ────────────────────────────────────────────────────────────────────
 st.markdown("""

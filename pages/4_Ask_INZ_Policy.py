@@ -22,6 +22,10 @@ st.title("❓ Ask INZ Policy")
 st.caption("Questions answered from live INZ documentation")
 st.divider()
  
+from utils.auth import check_login
+if not check_login():
+    st.stop()
+
 # Load RAG — already warmed up by Home.py; this call hits the cache instantly
 collection, all_chunks = get_collection()
  
