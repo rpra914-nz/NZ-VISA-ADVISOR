@@ -310,6 +310,9 @@ Skilled Migrant Category (SMC) Resident Visa.
 CURRENT SMC RULES (2025/2026):
 - Need minimum 6 points total
 - Choose ONE main pillar (qualification, occupational registration, or income)
+- ALWAYS choose the pillar that gives the HIGHEST points
+- Example: if income gives 3pts and qualification gives 0pts, use income pillar
+- Diploma/Certificate = 0 qualification points — never use as pillar, use income instead
 - Can add up to 3 points from NZ skilled work experience
 - MANDATORY: Must have skilled job offer from accredited NZ employer
   If job_offer is False or missing → status MUST be NOT_ELIGIBLE regardless of points
@@ -346,6 +349,8 @@ NZ WORK EXPERIENCE TOP-UP:
 
 APPLICANT PROFILE:
 {json.dumps(profile, indent=2)}
+CRITICAL: Respond in PLAIN TEXT only. No markdown, no ## headers, no ** bold, no --- dividers.
+Format your response exactly as shown below with no additional formatting.
 
 Respond in this EXACT format:
 RECOMMENDED_VISA: [visa name or "Not currently eligible"]
@@ -466,6 +471,11 @@ def _extract_bullets(lines: list, start_index: int) -> list:
 def parse_classification_response(raw: str, profile: dict) -> dict:
     """Parses Claude's structured response into a clean dict — including all sections."""
  
+    # Strip markdown formatting Claude sometimes adds despite instructions
+    import re
+    raw = re.sub(r'\*\*([^*]+)\*\*', r'\1', raw)   # remove **bold**
+    raw = re.sub(r'^#{1,3}\s*', '', raw, flags=re.MULTILINE)  # remove ## headers
+    raw = re.sub(r'^---+$', '', raw, flags=re.MULTILINE)      # remove --- dividers
     lines = raw.strip().split("\n")
     result = {
         "profile": profile,

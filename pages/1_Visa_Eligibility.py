@@ -66,12 +66,6 @@ st.markdown("""
 if "intake_agent" not in st.session_state:
     st.session_state.intake_agent = IntakeAgent()
 
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-    # Seed with first question
-    first_q = st.session_state.intake_agent.get_current_question()
-    st.session_state.chat_history.append({"role": "bot", "text": f"👋 Welcome! Let's collect your client's details for the SMC assessment.\n\n**{first_q}**"})
-
 if "intake_complete" not in st.session_state:
     st.session_state.intake_complete = False
 
@@ -178,13 +172,6 @@ def get_realtime_guidance(key: str, value) -> str | None:
                 return f"📍 **NZ experience:** {yrs} year(s) = **{pts} bonus point(s)** on top of main pillar ✅"
         except:
             return None
- 
-    # Job offer
-    if key == "job_offer":
-        if value is True:
-            return "✅ **Job offer confirmed** — ensure employer has INZ accreditation before lodging."
-        elif value is False:
-            return "⚠️ **No job offer** — a skilled job offer from an INZ-accredited employer is required for SMC."
  
     # English level
     if key == "english_level":
@@ -361,11 +348,6 @@ if not st.session_state.intake_complete:
                 ])
 
         with col2:
-            st.markdown("**Job Offer from Accredited NZ Employer?**")
-            st.caption("💡 Mandatory requirement — employer must hold INZ accreditation")
-            job_offer = st.radio("Job Offer", ["Yes", "No"],
-                                 label_visibility="collapsed", horizontal=True)
-
             st.markdown("**Annual Salary Offered (NZD)**")
             st.caption("💡 $73k-109k=3pts | $110k-145k=4pts | $146k-218k=5pts | $219k+=6pts")
             salary = st.text_input("Salary", label_visibility="collapsed",
@@ -423,7 +405,7 @@ if not st.session_state.intake_complete:
                 "occupation": occupation.strip(),
                 "anzsco_code": anzsco_code.strip() or "unknown",
                 "qualification": qualification,
-                "job_offer": job_offer == "Yes",
+                "job_offer": True,
                 "salary": salary.strip() if salary.strip() else "unknown",
                 "years_experience": years_experience,
                 "nz_work_experience_years": nz_work_experience_years,
@@ -432,18 +414,11 @@ if not st.session_state.intake_complete:
                 "family": family.strip() or "None",
             }
 
-            # Consistency check — no job offer but salary given
-            if not profile["job_offer"] and profile["salary"] != "unknown":
-                st.warning(
-                    "⚠️ No job offer selected but salary was provided. "
-                    "Salary will be excluded from scoring — only NZ job offer "
-                    "salaries count toward income pillar points."
-                )
-                profile["salary"] = "N/A — no job offer"
-
             st.session_state.client_profile = profile
             st.session_state.intake_agent.profile = profile
             st.session_state.intake_complete = True
+            st.session_state.active_case_id = None  # new case, not yet saved
+            st.session_state.assessment_result = None
             st.rerun()
 
 agent: IntakeAgent = st.session_state.intake_agent
@@ -464,7 +439,7 @@ if st.session_state.intake_complete and st.session_state.assessment_result is No
         "nationality": "Nationality",
         "age": "Age",
         "occupation": "Occupation / Job Title",
-        "job_offer": "NZ Job Offer",
+        "job_offer": "NZ Job Offer (Confirmed ✅)",
         "years_experience": "Years of Experience",
         "qualification": "Highest Qualification",
         "english_level": "English Level",
@@ -487,8 +462,8 @@ if st.session_state.intake_complete and st.session_state.assessment_result is No
     col_a, col_b = st.columns(2)
     with col_a:
         if st.button("🔄 Start Over", use_container_width=True):
-            for key in ["intake_agent", "chat_history", "intake_complete",
-                        "assessment_result", "client_profile"]:
+            for key in ["intake_agent", "intake_complete", "assessment_result", 
+                        "client_profile", "doc_review_results", "active_case_id"]:
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
@@ -497,7 +472,12 @@ if st.session_state.intake_complete and st.session_state.assessment_result is No
             with st.spinner("Analysing eligibility against INZ SMC rules…"):
                 try:
                     result = classify_applicant(profile)
+                    #st.write(result["parsed"])
                     st.session_state.assessment_result = result
+                    from utils.database import save_case
+                    case_id = save_case(profile, result)
+                    st.session_state["active_case_id"] = case_id
+                    st.success(f"✅ Case saved as **{case_id}**")
                     st.rerun()
                 except Exception as e:
                     st.error(f"Assessment failed: {e}")
@@ -641,8 +621,8 @@ if st.session_state.assessment_result is not None:
     col_a, col_b, col_c = st.columns(3)
     with col_a:
         if st.button("🔄 New Client", use_container_width=True):
-            for key in ["intake_agent", "chat_history", "intake_complete",
-                        "assessment_result", "client_profile", "doc_review_results"]:
+            for key in ["intake_agent", "intake_complete", "assessment_result", 
+                        "client_profile", "doc_review_results", "active_case_id"]:
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
