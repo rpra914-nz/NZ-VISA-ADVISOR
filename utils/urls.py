@@ -16,4 +16,10 @@ INZ_URLS = [
 
     # All resident visas overview
     "https://www.immigration.govt.nz/live/resident-visas-to-live-in-new-zealand/",
-    ]
+    
+    # Green List occupations
+    "https://www.immigration.govt.nz/work/requirements-for-work-visas/green-list-occupations-qualifications-and-skills/green-list-roles-jobs-we-need-people-for-in-new-zealand/",
+
+    # Accredited employer work visa
+    "https://www.immigration.govt.nz/visas/accredited-employer-work-visa/"
+]

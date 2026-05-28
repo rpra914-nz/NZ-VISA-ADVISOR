@@ -163,10 +163,13 @@ def retrieve(collection, query, n=n_results, all_chunks=None):
     expanded = expand_query(query)
     semantic_results = collection.query(
     query_texts=[query],
-    n_results=n
+    n_results=n,
+    include=["documents", "metadatas", "distances"]
 )
     semantic_chunks = semantic_results["documents"][0]
     semantic_pages = [m["page"] for m in semantic_results["metadatas"][0]]
+    semantic_distances = semantic_results["distances"][0]
+    avg_distance = sum(semantic_distances) / len(semantic_distances) if semantic_distances else 1.0
 
     # --- Keyword search (BM25) ---
     keyword_chunks = []
@@ -192,7 +195,9 @@ def retrieve(collection, query, n=n_results, all_chunks=None):
     # --- Conflict detection ---
     conflicts = detect_conflicts(merged_chunks)
 
-    return merged_chunks, merged_pages, conflicts
+    # Confidence: distance 0=perfect, 2=worst. Convert to 0-100% score.
+    confidence_score = max(0, round((1 - avg_distance / 2) * 100))
+    return merged_chunks, merged_pages, conflicts, confidence_score
 
 
 # ── 5. ASK CLAUDE ────────────────────────────────────────────────────

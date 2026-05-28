@@ -81,8 +81,20 @@ if query := st.chat_input("e.g. What documents do I need?"):
  
     with st.chat_message("assistant"):
         with st.spinner("Searching INZ documents..."):
-            chunks_retrieved, pages, conflicts = retrieve(collection, query, n=n_results, all_chunks=all_chunks)  # set to None to skip conflict detection for now
+            chunks_retrieved, pages, conflicts, confidence = retrieve(collection, query, n=n_results, all_chunks=all_chunks)
             answer = ask_claude(query, chunks_retrieved, pages, conflicts)
+    
+            # Secondary confidence check
+            #cant_answer_phrases = [
+            #    "does not contain", "outside the scope", "not covered",
+            #    "no information", "cannot find", "not available in"
+            #]
+            #if any(phrase in answer.lower() for phrase in cant_answer_phrases):
+            #    confidence = min(confidence, 25)
+
+        if confidence < 35:
+            st.warning(f"⚠️ Low confidence ({confidence}%) — retrieved policy chunks may not directly answer this question. Verify with INZ directly before advising the client.")
+            #st.stop()
         
         # ── Conflict warning — shown to LIA before the answer ────────
         if conflicts:
@@ -101,6 +113,14 @@ if query := st.chat_input("e.g. What documents do I need?"):
             st.info(f"📌 **Verified INZ rule:** {coverage_note}")
 
         st.markdown(answer)
+        if confidence >= 70:
+            conf_label = "🟢 High confidence"
+        elif confidence >= 45:
+            conf_label = "🟡 Medium confidence"
+        else:
+            conf_label = "🔴 Low confidence"
+        conf_pct = str(confidence) + "%"
+        st.caption(f"📊 Retrieval confidence: {conf_label} ({conf_pct})")
         with st.expander("📄 Source sections used"):
             for i, chunk in enumerate(chunks_retrieved):
                 st.markdown(f"**Section {pages[i]}**")
