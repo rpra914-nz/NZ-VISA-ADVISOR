@@ -19,6 +19,20 @@ GREEN_LIST_TIER1 = {
     "anaesthetist": "Green List Tier 1 — eligible for straight-to-residence pathway",
     "radiologist": "Green List Tier 1 — eligible for straight-to-residence pathway",
     "obstetrician": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    "registered nurse": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    "nurse": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    "midwife": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    "pharmacist": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    "physiotherapist": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    "occupational therapist": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    "social worker": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    "veterinarian": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    "vet": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    # Education
+    "secondary school teacher": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    "primary school teacher": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    "intermediate school teacher": "Green List Tier 1 — eligible for straight-to-residence pathway",
+    "school teacher": "Green List Tier 1 — eligible for straight-to-residence pathway",
     # Engineering & IT
     "civil engineer": "Green List Tier 1 — eligible for straight-to-residence pathway",
     "structural engineer": "Green List Tier 1 — eligible for straight-to-residence pathway",
@@ -27,32 +41,18 @@ GREEN_LIST_TIER1 = {
     "software developer": "Green List Tier 1 — eligible for straight-to-residence pathway",
     "ict security specialist": "Green List Tier 1 — eligible for straight-to-residence pathway",
 }
- 
+
 GREEN_LIST_TIER2 = {
     # Education
-    "teacher": "Green List Tier 2 — work-to-residence pathway available (2-year Accredited Employer Work Visa first)",
-    "secondary school teacher": "Green List Tier 2 — work-to-residence pathway available",
-    "primary school teacher": "Green List Tier 2 — work-to-residence pathway available",
-    "early childhood teacher": "Green List Tier 2 — work-to-residence pathway available",
-    # Health
-    "registered nurse": "Green List Tier 2 — work-to-residence pathway available",
-    "nurse": "Green List Tier 2 — work-to-residence pathway available",
-    "midwife": "Green List Tier 2 — work-to-residence pathway available",
-    "pharmacist": "Green List Tier 2 — work-to-residence pathway available",
-    "physiotherapist": "Green List Tier 2 — work-to-residence pathway available",
-    "occupational therapist": "Green List Tier 2 — work-to-residence pathway available",
-    "social worker": "Green List Tier 2 — work-to-residence pathway available",
+    "early childhood teacher": "Green List Tier 2 — work-to-residence pathway available (2-year Accredited Employer Work Visa first)",
+    "school principal": "Green List Tier 2 — work-to-residence pathway available",
+    "special education teacher": "Green List Tier 2 — work-to-residence pathway available",
     # Trades
     "plumber": "Green List Tier 2 — work-to-residence pathway available",
     "electrician": "Green List Tier 2 — work-to-residence pathway available",
-    "carpenter": "Green List Tier 2 — work-to-residence pathway available",
-    "construction manager": "Green List Tier 2 — work-to-residence pathway available",
-    "chef": "Green List Tier 2 — work-to-residence pathway available",
-    # Vet
-    "veterinarian": "Green List Tier 2 — work-to-residence pathway available",
-    "vet": "Green List Tier 2 — work-to-residence pathway available",
+    "construction site supervisor": "Green List Tier 2 — work-to-residence pathway available",
+    "building associate": "Green List Tier 2 — work-to-residence pathway available",
 }
- 
 def check_green_list(occupation: str) -> dict:
     """
     Returns Green List status for a given occupation.

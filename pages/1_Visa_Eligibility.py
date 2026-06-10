@@ -75,6 +75,8 @@ if "assessment_result" not in st.session_state:
 if "client_profile" not in st.session_state:
     st.session_state.client_profile = None
 
+DAILY_ASSESSMENT_LIMIT = 10  # Free/Trial = 3, Pro = 10, Enterprise = unlimited
+
 # ── REAL-TIME GUIDANCE ENGINE ─────────────────────────────────────────────────
 # Generates instant feedback after each answer — no extra API call needed.
 # Helps LIA understand impact of each answer before running full assessment.
