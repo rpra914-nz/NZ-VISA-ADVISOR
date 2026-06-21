@@ -323,6 +323,11 @@ CURRENT SMC RULES (2025/2026):
   If NOT exempt: IELTS 6.5+ (no band below 6.5), PTE Academic 58+, TOEFL iBT 79+, OET Grade B+
   If nationality suggests exempt country — note the exemption, do NOT require a test score
 
+POINTS FOR OCCUPATIONAL REGISTRATION:
+- If the occupation requires registration with a NZ professional body (e.g. Nursing Council, Engineering NZ, Teaching Council) AND requires 2+ years training/experience to gain that registration: 3 points
+- Some registered occupations may qualify for higher points if specified in Appendix 13 — check Green List Tier 1/2 occupations first, as many registered professions (nurses, doctors, engineers, teachers) are already covered there with guaranteed pathways
+- If occupation requires registration but training requirement is under 2 years: 0 points from this pillar (use qualification or income pillar instead)
+
 POINTS FOR QUALIFICATIONS (overseas):
 - PhD/Doctorate: 5 points
 - Masters/Postgraduate: 4 points  
@@ -359,6 +364,8 @@ PILLAR_USED: [qualification/income/registration]
 NZ_EXPERIENCE_POINTS: [number]
 TOTAL_POINTS: [number]
 THRESHOLD: 6
+CRITICAL: If TOTAL_POINTS >= 6 (the threshold), STATUS must be ELIGIBLE or LIKELY_ELIGIBLE, never NOT_ELIGIBLE.
+NOT_ELIGIBLE should ONLY be used when total points are below 6, OR when a mandatory requirement (job offer, age) is not met.
 STATUS: [ELIGIBLE/LIKELY_ELIGIBLE/NOT_ELIGIBLE]
 CONFIDENCE: [HIGH/MEDIUM/LOW]
 
