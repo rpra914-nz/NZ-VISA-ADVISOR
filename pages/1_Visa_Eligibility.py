@@ -75,6 +75,9 @@ if "assessment_result" not in st.session_state:
 if "client_profile" not in st.session_state:
     st.session_state.client_profile = None
 
+if "assessment_count" not in st.session_state:
+    st.session_state.assessment_count = 0
+
 DAILY_ASSESSMENT_LIMIT = 10  # Free/Trial = 3, Pro = 10, Enterprise = unlimited
 
 # ── REAL-TIME GUIDANCE ENGINE ─────────────────────────────────────────────────
@@ -292,6 +295,8 @@ def render_live_tracker(profile: dict):
                 st.success(f"⚡ Green List Tier {gl['tier']} detected!")
  
         st.divider()
+        remaining = max(0, DAILY_ASSESSMENT_LIMIT - st.session_state.get("assessment_count", 0))
+        st.caption(f"📊 Assessments remaining today: {remaining}/{DAILY_ASSESSMENT_LIMIT}")
         st.caption("Run full assessment for official score")
 
 # ── Header ────────────────────────────────────────────────────────────────────
@@ -471,11 +476,16 @@ if st.session_state.intake_complete and st.session_state.assessment_result is No
             st.rerun()
     with col_b:
         if st.button("🧠 Run SMC Assessment", type="primary", use_container_width=True):
+            if st.session_state.assessment_count >= DAILY_ASSESSMENT_LIMIT:
+                st.error(f"⚠️ Daily assessment limit reached ({DAILY_ASSESSMENT_LIMIT} assessments). Upgrade to Enterprise for unlimited access.")
+                st.stop()
             with st.spinner("Analysing eligibility against INZ SMC rules…"):
                 try:
+                    #st.write("DEBUG - Profile sent:", profile)
                     result = classify_applicant(profile)
                     #st.write(result["parsed"])
                     st.session_state.assessment_result = result
+                    st.session_state.assessment_count += 1
                     from utils.database import save_case
                     case_id = save_case(profile, result)
                     st.session_state["active_case_id"] = case_id
