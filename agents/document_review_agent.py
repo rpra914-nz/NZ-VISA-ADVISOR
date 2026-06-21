@@ -120,6 +120,12 @@ Rules:
 - status = "warning" → document present but may have issues (expiry, missing details, etc.)
 - status = "error" → document is incomplete, wrong type, or clearly inadequate
 - If text is too short or unreadable, set status = "warning" and explain in issues.
+
+SPECIFIC VALIDITY CHECKS:
+- Qualification documents: if no mention of NZQA assessment, IQA reference, or equivalency confirmation, flag as "warning" with issue "No NZQA/IQA assessment found — foreign qualifications require this before SMC points can be claimed."
+- Employment/job offer letters: if the document appears unsigned, undated, or says "letter of intent" rather than a signed contract, flag as "warning" with issue "Document appears to be a letter of intent, not a signed employment agreement — INZ requires a finalised, signed offer."
+- Police certificates: if dated more than 6 months before today's date, flag as "error" with issue "Police certificate is older than 6 months — INZ requires certificates issued within 6 months of application."
+- Passport: if expiry date is within 3 months of today, or already passed, flag as "error" with issue stating the exact expiry concern.
 """
 
     response = client.messages.create(
