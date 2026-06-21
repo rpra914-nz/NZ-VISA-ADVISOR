@@ -70,6 +70,8 @@ if "messages" not in st.session_state:
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
+        if msg["role"] == "assistant" and "confidence" in msg:
+            st.caption(f"📊 Retrieval confidence: {msg['confidence']}")
  
 if query := st.chat_input("e.g. What documents do I need?"):
     st.session_state.messages.append({
@@ -115,12 +117,19 @@ if query := st.chat_input("e.g. What documents do I need?"):
         st.markdown(answer)
         if confidence >= 70:
             conf_label = "🟢 High confidence"
+            conf_reason = "Policy chunks closely match this query."
         elif confidence >= 45:
             conf_label = "🟡 Medium confidence"
+            conf_reason = "Partial policy match found — answer may not cover all aspects. Verify with INZ if advising on this point."
         else:
             conf_label = "🔴 Low confidence"
-        conf_pct = str(confidence) + "%"
-        st.caption(f"📊 Retrieval confidence: {conf_label} ({conf_pct})")
+            if conflicts:
+                conf_reason = "Conflicting policy information detected — chunks contradict each other. LIA must verify directly with INZ."
+            elif any(phrase in answer.lower() for phrase in ["does not contain", "not available", "cannot find", "outside the scope"]):
+                conf_reason = "This topic is not covered in the scraped INZ pages. Check immigration.govt.nz directly."
+            else:
+                conf_reason = "Query did not closely match available policy content. Rephrase or verify directly with INZ."
+        st.caption(f"📊 Retrieval confidence: {conf_label} ({confidence}%) — {conf_reason}")
         with st.expander("📄 Source sections used"):
             for i, chunk in enumerate(chunks_retrieved):
                 st.markdown(f"**Section {pages[i]}**")
@@ -128,5 +137,6 @@ if query := st.chat_input("e.g. What documents do I need?"):
  
     st.session_state.messages.append({
         "role": "assistant",
-        "content": answer
+        "content": answer,
+        "confidence": f"{conf_label} ({confidence}%) — {conf_reason}"
     })

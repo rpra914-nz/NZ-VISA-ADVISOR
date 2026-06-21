@@ -82,7 +82,25 @@ def _build_styles():
         fontSize=11, textColor=WHITE, alignment=TA_CENTER,
     )
     return custom
- 
+
+# ── Text sanitiser ───────────────────────────────────────────────────────────
+def _safe(text: str) -> str:
+    """
+    Escape characters that ReportLab interprets as markup or math.
+    Must be called on ANY user/LLM-generated text before passing to Paragraph().
+    """
+    if not text:
+        return ""
+    # Escape dollar signs — ReportLab treats $...$ as math mode
+    text = text.replace("$", "&#36;")
+    # Escape ampersands not already part of an entity
+    import re
+    text = re.sub(r'&(?!#\d+;|[a-zA-Z]+;)', '&amp;', text)
+    # Remove any asterisk-based markdown bold/italic (LLM sometimes outputs these)
+    text = re.sub(r'\*\*(.+?)\*\*', r'<b></b>', text)
+    text = re.sub(r'\*(.+?)\*', r'<i></i>', text)
+    return text
+
 # ── Section builders ──────────────────────────────────────────────────────────
  
 def _header_block(styles, profile: dict) -> list:
@@ -232,28 +250,28 @@ def _assessment_section(styles, assessment: dict) -> list:
     if strengths:
         story.append(Paragraph("<b>Strengths</b>", styles["body"]))
         for s in strengths:
-            story.append(Paragraph(f"• {s}", styles["body"]))
+            story.append(Paragraph("• " + _safe(s), styles["body"]))
  
     # Gaps
     if gaps:
         story.append(Spacer(1, 4))
         story.append(Paragraph("<b>Gaps / Areas to Address</b>", styles["body"]))
         for g in gaps:
-            story.append(Paragraph(f"• {g}", styles["body"]))
+            story.append(Paragraph("• " + _safe(g), styles["body"]))
  
     # Recommended actions
     if actions:
         story.append(Spacer(1, 4))
         story.append(Paragraph("<b>Recommended Actions</b>", styles["body"]))
         for i, a in enumerate(actions, 1):
-            story.append(Paragraph(f"{i}. {a}", styles["body"]))
+            story.append(Paragraph(str(i) + ". " + _safe(a), styles["body"]))
  
     # Risk flags
     if risk_flags:
         story.append(Spacer(1, 4))
         story.append(Paragraph("<b>Risk Flags</b>", styles["body"]))
         for r in risk_flags:
-            story.append(Paragraph(f"⚠ {r}", styles["body"]))
+            story.append(Paragraph("⚠ " + _safe(r), styles["body"]))
  
     story.append(Spacer(1, 6))
     return story
@@ -298,11 +316,11 @@ def _document_section(styles, doc_review: dict) -> list:
             block = []
             block.append(Paragraph(f"<b>{icon} {label}</b> <font color='#8C9099'>({fname})</font>", styles["body"]))
             if summary:
-                block.append(Paragraph(summary, styles["small"]))
+                block.append(Paragraph(_safe(summary), styles["small"]))
             for issue in issues:
-                block.append(Paragraph(f"  ⚠ {issue}", styles["small"]))
+                block.append(Paragraph("  ⚠ " + _safe(issue), styles["small"]))
             for sug in suggestions:
-                block.append(Paragraph(f"  → {sug}", styles["small"]))
+                block.append(Paragraph("  → " + _safe(sug), styles["small"]))
             block.append(Spacer(1, 4))
             story.extend(block)
  
