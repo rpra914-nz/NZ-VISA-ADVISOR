@@ -39,6 +39,11 @@ if collection is None:
     st.stop()
  
 st.success("✅ INZ documents loaded. Ask your question below!")
+st.caption(
+    "⚠️ Answers reflect the most recently scraped INZ policy. "
+    "If your client's lodgement date differs from today, verify the policy version "
+    "that was in effect at that time, as INZ rules change periodically (e.g. SMC changes effective 24 Aug 2026)."
+)
 
 # ── Coverage assurance — rule-based facts validated independently of RAG ──
 # These are hard facts that must be correct regardless of what the scraped
@@ -54,14 +59,37 @@ COVERAGE_RULES = {
     "qualification": "Qualification pillar: Bachelor's/Honours = 3pts, Masters/Postgrad = 4pts, PhD/Doctorate = 5pts. NZ qualification adds 1pt.",
     "nz experience": "NZ skilled work experience adds **1 point per year**, up to a maximum of 3 points.",
     "processing": "INZ processing times vary. Check the current INZ website for live timeframes — they are not scraped by this tool.",
+    "overseas experience": "Overseas work experience does NOT count for NZ experience top-up points. Only skilled work experience gained IN New Zealand adds points (1pt/year, max 3pts). Overseas experience may support qualification or registration pillar claims but not the NZ experience top-up.",
+    "contractor": "Contractor roles can qualify for SMC if the contract is continuous for at least 6 months. Evidence required: income summary or tax statement from Inland Revenue, plus job descriptions and contract history.",
+    "ielts expires": "English language test results must be less than 2 years old when you apply. From 24 August 2026, results will be valid for 5 years for applicants with recognised occupational registration.",
+}
+
+# Maps multiple search terms to each COVERAGE_RULES key, so e.g. "IELTS" or "PTE"
+# both trigger the "english" rule rather than requiring the exact word "english".
+COVERAGE_KEYWORD_ALIASES = {
+    # Specific rules first — must come before generic ones
+    "contractor": ["contractor", "contract role", "fixed-term contract", "contracting"],
+    "ielts expires": ["ielts expires", "pte valid", "ielts valid", "score valid", "score expires", "results expire", "test expiry", "how long is my", "valid for how"],
+    "overseas experience": ["overseas experience", "overseas work", "international experience", "work experience overseas", "foreign experience"],
+    "accredited employer": ["accredited employer", "accreditation"],
+    "age": ["age limit", "age requirement", "how old", "maximum age", "55 years"],
+    "green list": ["green list"],
+    "processing": ["processing time", "how long does"],
+    # Generic rules last
+    "english": ["english", "ielts", "pte", "toefl", "language"],
+    "job offer": ["job offer", "employer"],
+    "salary": ["salary", "income", "wage"],
+    "qualification": ["qualification", "degree", "bachelor", "masters", "phd"],
+    "nz experience": ["nz experience", "new zealand experience", "how much experience", "years of experience in nz", "work experience"],
+    "points": ["points", "threshold"],
 }
 
 def get_coverage_note(query: str) -> str | None:
     """Return a verified rule-based note if the query matches a known SMC fact."""
     q = query.lower()
-    for keyword, rule in COVERAGE_RULES.items():
-        if keyword in q:
-            return rule
+    for rule_key, aliases in COVERAGE_KEYWORD_ALIASES.items():
+        if any(alias in q for alias in aliases):
+            return COVERAGE_RULES.get(rule_key)
     return None
  
 if "messages" not in st.session_state:
@@ -113,8 +141,13 @@ if query := st.chat_input("e.g. What documents do I need?"):
         coverage_note = get_coverage_note(query)
         if coverage_note:
             st.info(f"📌 **Verified INZ rule:** {coverage_note}")
+            if confidence < 50:
+                st.caption("📊 Retrieval confidence: based on verified INZ rule above — RAG retrieval was insufficient for this query.")
+                st.session_state.messages.append({"role": "assistant", "content": coverage_note, "confidence": "🔴 Low — answered from verified rule"})
+                st.stop()
 
         st.markdown(answer)
+
         if confidence >= 70:
             conf_label = "🟢 High confidence"
             conf_reason = "Policy chunks closely match this query."
@@ -124,17 +157,18 @@ if query := st.chat_input("e.g. What documents do I need?"):
         else:
             conf_label = "🔴 Low confidence"
             if conflicts:
-                conf_reason = "Conflicting policy information detected — chunks contradict each other. LIA must verify directly with INZ."
+                conf_reason = "Conflicting policy information detected — LIA must verify directly with INZ."
             elif any(phrase in answer.lower() for phrase in ["does not contain", "not available", "cannot find", "outside the scope"]):
                 conf_reason = "This topic is not covered in the scraped INZ pages. Check immigration.govt.nz directly."
             else:
                 conf_reason = "Query did not closely match available policy content. Rephrase or verify directly with INZ."
         st.caption(f"📊 Retrieval confidence: {conf_label} ({confidence}%) — {conf_reason}")
+
         with st.expander("📄 Source sections used"):
             for i, chunk in enumerate(chunks_retrieved):
                 st.markdown(f"**Section {pages[i]}**")
                 st.caption(chunk[:300] + "...")
- 
+
     st.session_state.messages.append({
         "role": "assistant",
         "content": answer,
