@@ -10,6 +10,7 @@ import os
 import json
 import anthropic
 import pypdf
+import datetime
 
 # ── INZ SMC required document matrix ────────────────────────────────────────
 SMC_REQUIRED_DOCS = {
@@ -89,7 +90,9 @@ def classify_document(client: anthropic.Anthropic, filename: str, text_snippet: 
     valid_types = ", ".join(SMC_REQUIRED_DOCS.keys())
     snippet = text_snippet[:3000] if len(text_snippet) > 3000 else text_snippet
 
-    prompt = f"""You are an expert NZ immigration document reviewer helping a Licensed Immigration Adviser (LIA).
+    prompt = f"""
+    Today's date is {datetime.date.today().strftime('%d %B %Y')}. Use this as reference for date validations.
+    You are an expert NZ immigration document reviewer helping a Licensed Immigration Adviser (LIA).
 
 A client has uploaded a document for their Skilled Migrant Category (SMC) residence visa application.
 
