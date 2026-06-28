@@ -349,6 +349,9 @@ Examples: $80k/yr = $38.46/hr = 3pts | $100k/yr = $48.08/hr = 3pts | $120k/yr = 
 CRITICAL SALARY RULE: $100,000/yr = $48/hr = above $35/hr threshold = 3 points (1x median). Do NOT say it is below median.
 Only flag salary as a gap if it is genuinely BELOW $73,000/yr.
 
+MANDATORY CONSISTENCY CHECK: Before writing POINTS_FROM_PILLAR, recalculate the salary and ensure POINTS_FROM_PILLAR matches your STRENGTHS/GAPS text exactly. Never write a points field that contradicts your own stated reasoning.
+$80,000/yr = $38.46/hr = above $35/hr (1x median) = 3 points, NOT 0 points.
+
 NZ WORK EXPERIENCE TOP-UP:
 - 1 point per year in NZ (max 3 points)
 
@@ -393,6 +396,62 @@ policy before lodging any application."""
 
     raw_response = message.content[0].text
     result = parse_classification_response(raw_response, profile)
+
+# ── Deterministic salary override ────────────────────────────────
+    # LLMs make arithmetic errors on salary thresholds — Python is more reliable
+    def calculate_salary_points(annual_salary: float) -> int:
+        if annual_salary >= 219000:
+            return 6
+        elif annual_salary >= 146000:
+            return 5
+        elif annual_salary >= 109500:
+            return 4
+        elif annual_salary >= 73000:
+            return 3
+        else:
+            return 0
+
+    if result["parsed"].get("pillar", "").lower() == "income":
+        try:
+            salary = float(profile.get("salary", 0))
+            correct_points = calculate_salary_points(salary)
+            nz_exp = int(result["parsed"].get("nz_experience_points", 0))
+            result["parsed"]["pillar_points"] = str(correct_points)
+            result["parsed"]["total_points"] = str(correct_points + nz_exp)
+        except (ValueError, TypeError):
+            pass
+
+    # ── Deterministic pillar selection override ──────────────────────
+    # Always select the highest-scoring pillar — LLM sometimes picks wrong pillar
+    try:
+        salary = float(profile.get("salary", 0))
+        qualification = profile.get("qualification", "")
+        
+        income_pts = calculate_salary_points(salary)
+        
+        if "phd" in qualification.lower() or "doctorate" in qualification.lower():
+            qual_pts = 5
+        elif "master" in qualification.lower() or "postgrad" in qualification.lower():
+            qual_pts = 4
+        elif "bachelor" in qualification.lower() or "honours" in qualification.lower():
+            qual_pts = 3
+        else:
+            qual_pts = 0
+        
+        # Pick highest pillar
+        if income_pts >= qual_pts and income_pts > 0:
+            best_pillar = "income"
+            best_pts = income_pts
+        else:
+            best_pillar = "qualification"
+            best_pts = qual_pts
+        
+        nz_exp = int(result["parsed"].get("nz_experience_points", 0))
+        result["parsed"]["pillar"] = best_pillar
+        result["parsed"]["pillar_points"] = str(best_pts)
+        result["parsed"]["total_points"] = str(best_pts + nz_exp)
+    except (ValueError, TypeError):
+        pass
 
     # ── Attach pre-flight flags to result ────────────────────────────
     if _pre_flags:
