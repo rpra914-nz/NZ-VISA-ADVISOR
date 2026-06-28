@@ -566,7 +566,7 @@ if st.session_state.assessment_result is not None:
         st.subheader("💪 Strengths")
         if strengths:
             for s in strengths:
-                st.markdown(f"✅ {s}")
+                st.markdown(f"✅ {s.replace('$', '\\$')}")
         else:
             st.caption("None identified.")
 
@@ -574,7 +574,7 @@ if st.session_state.assessment_result is not None:
         st.subheader("⚠️ Gaps")
         if gaps:
             for g in gaps:
-                st.markdown(f"🔴 {g}")
+                st.markdown(f"🔴 {g.replace('$', '\\$')}")
         else:
             st.caption("None identified.")
 
@@ -584,7 +584,7 @@ if st.session_state.assessment_result is not None:
     st.subheader("📋 Recommended Actions")
     if actions:
         for i, a in enumerate(actions, 1):
-            st.markdown(f"**{i}.** {a}")
+            st.markdown(f"**{i}.** {a.replace('$', '\\$')}")
     else:
         st.caption("No actions listed.")
 
