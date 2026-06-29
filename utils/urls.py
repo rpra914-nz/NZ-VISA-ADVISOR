@@ -21,5 +21,9 @@ INZ_URLS = [
     "https://www.immigration.govt.nz/work/requirements-for-work-visas/green-list-occupations-qualifications-and-skills/green-list-roles-jobs-we-need-people-for-in-new-zealand/",
 
     # Accredited employer work visa
-    "https://www.immigration.govt.nz/visas/accredited-employer-work-visa/"
+    "https://www.immigration.govt.nz/visas/accredited-employer-work-visa/",
+
+    # English language requirements for skilled residence visas
+    "https://www.immigration.govt.nz/process-to-apply/applying-for-a-visa/providing-evidence-and-documents-to-support-your-visa-application/english-language-requirements/english-language-requirements-for-skilled-residence-visas/",
+
 ]

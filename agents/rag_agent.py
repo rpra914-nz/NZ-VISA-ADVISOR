@@ -150,6 +150,8 @@ Return ONLY the 3 phrases separated by newlines, nothing else.
 Question: {query}"""
         }]
     )
+    # ── Token logging ──────────────────────────────────────────
+    print(f"[TOKENS] RAG Query expansion: input={message.usage.input_tokens}, output={message.usage.output_tokens}, total={message.usage.input_tokens + message.usage.output_tokens}")
     expanded = message.content[0].text.strip()
     # Combine original + expanded for maximum coverage
     return query + " " + " ".join(expanded.split("\n"))
@@ -235,6 +237,8 @@ QUESTION: {query}"""
             }
         ]
     )
+    # ── Token logging ──────────────────────────────────────────
+    print(f"[TOKENS] RAG Answer: input={message.usage.input_tokens}, output={message.usage.output_tokens}, total={message.usage.input_tokens + message.usage.output_tokens}")
     return message.content[0].text
 
 

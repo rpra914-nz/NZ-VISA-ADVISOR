@@ -136,6 +136,8 @@ SPECIFIC VALIDITY CHECKS:
         max_tokens=600,
         messages=[{"role": "user", "content": prompt}],
     )
+    # ── Token logging ──────────────────────────────────────────
+    print(f"[TOKENS] Document review: input={response.usage.input_tokens}, output={response.usage.output_tokens}, total={response.usage.input_tokens + response.usage.output_tokens}")
 
     raw = response.content[0].text.strip()
 
