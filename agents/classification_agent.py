@@ -1,7 +1,9 @@
 import os
 import json
+from unittest import result
 import anthropic
 from dotenv import load_dotenv
+import re
  
 load_dotenv()
  
@@ -393,6 +395,8 @@ policy before lodging any application."""
             }
         ]
     )
+    # ── Token logging ──────────────────────────────────────────
+    print(f"[TOKENS] Classification: input={message.usage.input_tokens}, output={message.usage.output_tokens}, total={message.usage.input_tokens + message.usage.output_tokens}")
 
     raw_response = message.content[0].text
     result = parse_classification_response(raw_response, profile)
@@ -478,6 +482,32 @@ policy before lodging any application."""
             gaps = result["parsed"].get("gaps", [])
             gaps.insert(0, f"Client is {age} years old — exceeds the SMC age limit of 55.")
             result["parsed"]["gaps"] = gaps
+    except (TypeError, ValueError):
+        pass
+
+# ── English language hard override ────────────────────────────
+    try:
+        english = profile.get("english_level", "").lower()
+        nationality = profile.get("nationality", "").lower()
+        exempt_countries = ["new zealand", "australia", "united kingdom", "uk", "united states", "usa", "canada", "ireland"]
+        is_exempt = any(c in nationality for c in exempt_countries) or \
+                    any(c in english for c in ["native", "citizen", "exempt"])
+        
+        if not is_exempt and ("ielts" in english or "pte" in english or "toefl" in english or "oet" in english):
+            scores = re.findall(r'\d+\.?\d*', english)
+            if scores:
+                score = float(scores[0])
+                threshold = 6.5
+                if "pte" in english:
+                    threshold = 58
+                elif "toefl" in english:
+                    threshold = 79
+                if score < threshold:
+                    result["parsed"]["status"] = "NOT_ELIGIBLE"
+                    gaps = result["parsed"].get("gaps", [])
+                    if not any("english language requirement not met" in g.lower() for g in gaps):
+                        gaps.insert(0, f"English language requirement not met: score {score} is below mandatory minimum {threshold}. Application cannot proceed.")
+                    result["parsed"]["gaps"] = gaps
     except (TypeError, ValueError):
         pass
 

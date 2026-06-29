@@ -75,7 +75,7 @@ def _build_styles():
     )
     custom["points_big"] = ParagraphStyle(
         "points_big", parent=base["Normal"],
-        fontSize=28, textColor=NZ_TEAL, alignment=TA_CENTER, spaceAfter=2,
+        fontSize=18, textColor=NZ_TEAL, alignment=TA_CENTER, spaceAfter=2,
     )
     custom["status_label"] = ParagraphStyle(
         "status_label", parent=base["Normal"],
@@ -245,7 +245,21 @@ def _assessment_section(styles, assessment: dict) -> list:
     ]))
     story.append(t)
     story.append(Spacer(1, 6))
- 
+
+    # Green List detection
+    green_list = assessment.get("green_list", {})
+    if green_list.get("on_green_list"):
+        tier = green_list.get("tier")
+        pathway_note = assessment.get("parsed", {}).get("pathway_note", "")
+        if tier == 1:
+            gl_text = f"⚡ Green List Tier 1 Detected — {pathway_note}"
+        elif tier == 2:
+            gl_text = f"⚡ Green List Tier 2 Detected — {pathway_note}"
+        else:
+            gl_text = "⚡ Green List Occupation Detected — LIA must verify pathway."
+        story.append(Paragraph(_safe(gl_text), styles["body"]))
+        story.append(Spacer(1, 4))
+
     # Strengths
     if strengths:
         story.append(Paragraph("<b>Strengths</b>", styles["body"]))

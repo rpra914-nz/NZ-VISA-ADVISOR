@@ -55,7 +55,7 @@ COVERAGE_RULES = {
     "job offer": "A **skilled job offer from an INZ-accredited employer** is required for SMC.",
     "accredited employer": "The employer must hold **INZ accreditation** before a job offer can be used for SMC points.",
     "green list": "The **Green List** offers faster pathways: Tier 1 = Straight to Residence, Tier 2 = Work to Residence via 2-year AEWV.",
-    "salary": "Income pillar (2025 NZ median ~$73k/yr): $73k-109k/yr = 3pts | $110k-145k/yr = 4pts | $146k-218k/yr = 5pts | $219k+/yr = 6pts. Divide annual by 2080 to get hourly rate.",
+    "salary": "Income pillar: Must be at least $73,000/yr ($35.10/hr — 1x median). Below this = 0 points. $73k-109k = 3pts | $110k-145k = 4pts | $146k-218k = 5pts | $219k+ = 6pts.",
     "qualification": "Qualification pillar: Bachelor's/Honours = 3pts, Masters/Postgrad = 4pts, PhD/Doctorate = 5pts. NZ qualification adds 1pt.",
     "nz experience": "NZ skilled work experience adds **1 point per year**, up to a maximum of 3 points.",
     "processing": "INZ processing times vary. Check the current INZ website for live timeframes — they are not scraped by this tool.",
